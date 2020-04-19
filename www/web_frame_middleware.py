@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = 'Aileon'
+
 import logging
 logging.basicConfig(level=logging.INFO)
 import os, json, time
@@ -74,10 +79,12 @@ async def response_factory(app, handler):
         if isinstance(r, dict):
             template = r.get('__template__')
             if template is None:
+                # 没有模板，直接把r的内容以json格式保存在body中 返回
                 resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode('utf-8'))
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
+                # 有模板 则从app内置的模板__templating__中找到template模板，把r字典填入相应模板相应位置，返回
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp

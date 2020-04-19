@@ -3,9 +3,7 @@
 
 __author__ = "Aileon"
 
-import asyncio, logging
-
-import aiomysql
+import asyncio, logging, aiomysql
 """
 ORM框架提供了python操作mysql数据库的简便方式
 把表映射为类对象（即表类，表类内包含字段类的实例），把记录映射为实例对象

@@ -85,7 +85,8 @@ from aiohttp import web
 import orm
 from web_frame_handler import add_routes, add_static
 from web_frame_middleware import logger_factory, response_factory, datetime_filter, init_jinja2
-
+from config import configs as config
+'''
 async def init(loop):
     await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='Aileon', password='767872313', db='web_app')
     app = web.Application(loop=loop, middlewares=[logger_factory, response_factory])
@@ -97,6 +98,22 @@ async def init(loop):
     logging.info('server started at http://127.0.0.1:9000...')
     return srv
 
+lo = asyncio.get_event_loop()
+lo.run_until_complete(init(lo))
+lo.run_forever()
+'''
+async def init(lo):
+    await orm.create_pool(loop=lo, **config['db'])#创建数据库连接池，参数导入配置文件
+    app = web.Application(middlewares=[logger_factory,response_factory])
+    init_jinja2(app,filters=dict(datetime=datetime_filter))#初始化Jinja2
+    add_routes(app,'url_handle_fn')#导入URL处理函数
+    add_static(app)
+    # web.run_app(app, host='127.0.0.1', port=8080)  
+    srv = await lo.create_server(app.make_handler(),'127.0.0.1',9000)
+    logging.info('Server started at http://127.0.0.1:9000...')
+    return srv
+
+# init()
 lo = asyncio.get_event_loop()
 lo.run_until_complete(init(lo))
 lo.run_forever()
