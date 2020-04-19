@@ -100,6 +100,15 @@ async def response_factory(app, handler):
         return resp
     return response
 
+"""
+Blog的创建日期显示的是一个浮点数，因为它是由这段模板渲染出来的：
+<p class="uk-article-meta">发表于{{ blog.created_at }}</p>
+解决方法是通过jinja2的filter（过滤器），把一个浮点数转换成日期字符串。
+编写一个datetime的filter，在模板里用法如下：
+{{ blog.created_at|datetime }}
+其中的|管道符是将前面的结果再经过datetime处理，在web_app中已经将datetime的处理函数指向了datetime_filter
+"""
+
 def datetime_filter(t):
     delta = int(time.time() - t)
     if delta < 60:

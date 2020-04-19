@@ -108,7 +108,6 @@ async def init(lo):
     init_jinja2(app,filters=dict(datetime=datetime_filter))#初始化Jinja2
     add_routes(app,'url_handle_fn')#导入URL处理函数
     add_static(app)
-    # web.run_app(app, host='127.0.0.1', port=8080)  
     srv = await lo.create_server(app.make_handler(),'127.0.0.1',9000)
     logging.info('Server started at http://127.0.0.1:9000...')
     return srv

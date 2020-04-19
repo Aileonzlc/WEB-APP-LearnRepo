@@ -1,7 +1,8 @@
 # import asyncio
+import time
 
 from web_frame_handler import get, post
-from models import User #引入orm框架的User模型
+from models import User, Blog #引入orm框架的User模型
 
 """
 MVC：Model-View-Controller,中文名“模型-视图-控制器”。
@@ -16,11 +17,23 @@ Model是用来传给View的，这样View在替换变量的时候，就可以从M
 串联ORM框架以及Web框架编写MVC，用于测试运行
 '''
 
-@get('/')
-async def index(request):
+@get('/p')
+async def index1(request):
     users = await User.findAll()
     return {
     '__template__':'text.html',
     'users':users
     } # 返回一个字典，'__template__'指定的模板文件是test.html，其他参数是传递给模板的数据
 
+@get('/')
+async def index(request):
+    summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+    blogs = [
+        Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
+        Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
+        Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
+    ]
+    return {
+        '__template__': 'blogs.html',
+        'blogs': blogs
+    }
