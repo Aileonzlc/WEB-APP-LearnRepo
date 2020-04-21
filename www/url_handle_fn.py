@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 from web_frame_handler import get, post
 from models import User, Blog, next_id #引入orm框架的User模型
 from config import config
-from apis import APIError, APIValueError
+from apis import APIError, APIValueError, APIPermissionError
 
 # ========================第一部分url处理函数：面向前端==========================
 """
@@ -181,3 +181,32 @@ async def cookie2user(cookie_str):
     except Exception as e:
         logging.exception(e)
         return None
+
+#检测有否登录且是否为管理员
+def check_admin(request):
+    if request.__user__ is None or request.__user__.admin:
+        raise APIPermissionError()
+
+#创建blog
+@post('/api/blogs')
+async def api_create_blogs(request, *, name, summary, content):
+    check_admin(request)
+    if not name or not name.strip():
+        raise APIValueError('name','name can not empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary','summary can not empty.')
+    if not content or not content.strip():
+        raise APIValueError('content','content can not empty.')
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__image, summary=summary.strip(), name=name.strip(), content=content.strip())
+    await blog.save()
+    return blog
+
+#显示创建blog页面
+@get('/manage/blogs/create')
+def manage_create_blog(request):
+    return {
+        '__template__': 'manage_blog_edit.html',
+        'id': '',
+        'action': '/api/blogs',
+        '__user__': request.__user__
+    }
