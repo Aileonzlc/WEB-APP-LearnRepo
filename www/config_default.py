@@ -17,6 +17,7 @@ configs = {
         'db': 'web_app'
     },
     'session': {
-        'secret': 'Awesome'
+        'secret': 'web_app', # 本服务器使用的cookie密钥
+        'cookieName': 'web_cookie' # cookie的名字，用来在字典里找cookie
     }
 }

@@ -10,6 +10,8 @@ from datetime import datetime
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 
+from url_handle_fn import COOKIE_NAME, cookie2user
+
 def init_jinja2(app, **kw):
     ' 初始化jinja2，设置模板来源 '
     logging.info('init jinja2...')
@@ -99,6 +101,21 @@ async def response_factory(app, handler):
         resp.content_type = 'text/plain;charset=utf-8'
         return resp
     return response
+
+
+async def auth_factory(app, handler):
+    ' 验证中间件middleware 用于在调用url处理函数之前对request进行cookie解析 提取并解析cookie并绑定在request对象上'
+    async def auth(request):
+        logging.info('check user: %s %s' % (request.method, request.path))
+        request.__user__ = None # 给request绑定一个属性叫__user__, cookie过期或失效或没有的时候为None
+        cookie_str = request.cookies.get(COOKIE_NAME) # 从request中获取cookie（字符串）
+        if cookie_str:
+            user = await cookie2user(cookie_str) # 解析cookie对应的user
+            if user:
+                logging.info('set current user: %s' % user.email)
+                request.__user__ = user # 将user对象绑定在__user__属性
+        return (await handler(request))
+    return auth
 
 """
 Blog的创建日期显示的是一个浮点数，因为它是由这段模板渲染出来的：

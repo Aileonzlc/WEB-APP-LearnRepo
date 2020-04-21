@@ -46,13 +46,13 @@ def toDict(d):
         D[k] = toDict(v) if isinstance(v, dict) else v
     return D
 
-configs = config_default.configs
+config = config_default.configs
 
 try:
     import config_override
-    configs = merge(configs, config_override.configs)
+    config = merge(config, config_override.configs)
 except ImportError:
     pass
 
-configs = toDict(configs) # 把它转换成自己创建的字典（其实没什么必要，不过可以自定义报错内容和通过.的形式获取值）
+config = toDict(config) # 把它转换成自己创建的字典（其实没什么必要，不过可以自定义报错内容和通过.的形式获取值）
 

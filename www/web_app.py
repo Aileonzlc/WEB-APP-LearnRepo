@@ -82,10 +82,12 @@ import logging; logging.basicConfig(level=logging.INFO)
 import asyncio
 from aiohttp import web
 
-import orm
+# import orm
+# import url_handle_fn
+from orm import create_pool
 from web_frame_handler import add_routes, add_static
-from web_frame_middleware import logger_factory, response_factory, datetime_filter, init_jinja2
-from config import configs as config
+from web_frame_middleware import logger_factory, response_factory, auth_factory, datetime_filter, init_jinja2
+from config import config
 '''
 async def init(loop):
     await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='Aileon', password='767872313', db='web_app')
@@ -103,11 +105,11 @@ lo.run_until_complete(init(lo))
 lo.run_forever()
 '''
 async def init(lo):
-    await orm.create_pool(loop=lo, **config['db'])#创建数据库连接池，参数导入配置文件
-    app = web.Application(middlewares=[logger_factory,response_factory])
-    init_jinja2(app,filters=dict(datetime=datetime_filter))#初始化Jinja2
-    add_routes(app,'url_handle_fn')#导入URL处理函数
-    add_static(app)
+    await create_pool(loop=lo, **config['db'])# 创建数据库连接池，参数导入配置文件 orm中的函数
+    app = web.Application(middlewares=[logger_factory,response_factory,auth_factory]) # web_frame_middleware中的函数
+    init_jinja2(app,filters=dict(datetime=datetime_filter))#初始化Jinja2 web_frame_middleware中的函数
+    add_routes(app,'url_handle_fn')#导入URL处理函数 web_frame_handler中的函数
+    add_static(app) # web_frame_handler中的函数
     srv = await lo.create_server(app.make_handler(),'127.0.0.1',9000)
     logging.info('Server started at http://127.0.0.1:9000...')
     return srv

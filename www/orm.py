@@ -194,8 +194,8 @@ class Model(dict, metaclass=ModelMetaclass): # 继承Model的子类，会隐式�
         sql = [cls.__select__] # 用该表的字段初始化该表的select语句
         if where:
             sql.append('where')
-            sql.append(where) # 此处的where输入的是条件（字符串形式），如"`id`>2"
-        if args is None:
+            sql.append(where) # 此处的where输入的是条件（字符串形式），如"`id`>?" 其中参数用？代替，参数填在args中
+        if args is None: 
             args = []
         orderBy = kw.get('orderBy', None)
         if orderBy:
@@ -238,7 +238,7 @@ class Model(dict, metaclass=ModelMetaclass): # 继承Model的子类，会隐式�
         rs = await select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
         if len(rs) == 0:
             return None
-        return cls(**rs[0]) # 返回一个实例对象
+        return cls(**rs[0]) # 用查询到的记录（字典）返回一个映射的实例对象
 
     async def save(self):
         args = list(map(self.getValueOrDefault, self.__fields__)) # 获取实例对象的字段当前值或默认值

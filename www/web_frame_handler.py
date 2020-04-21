@@ -209,7 +209,8 @@ class RequestHandler(object):
         # check required kw:
         if self._required_kw_args:
             for name in self._required_kw_args: # 如果处理函数需要传入命名的关键字参数（没有默认值），且kw中没有提供
-                if not name in kw:
+                # if not name in kw:
+                if name not in kw:
                     return web.HTTPBadRequest(text='Missing argument: %s' % name)
         logging.info('call with args: %s' % str(kw))
         try:
@@ -254,6 +255,7 @@ app.add_routes([web.get('/intro', handler.handle_intro),
 """
 
 def add_route(app, fn):
+    ' 为一个网页路径添加相应的url处理方法fn（注册） 添加前用requesthandler处理函数参数（验证及传参） '
     method = getattr(fn, '__method__', None)
     path = getattr(fn, '__route__', None)
     if path is None or method is None:
@@ -264,7 +266,7 @@ def add_route(app, fn):
     logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))
     app.router.add_route(method, path, RequestHandler(app, fn))
 
-# 直接导入文件，批量注册一个URL处理函数
+# 直接导入文件，批量注册URL处理函数
 def add_routes(app, module_name):
     n = module_name.rfind('.')
     if n == (-1):
