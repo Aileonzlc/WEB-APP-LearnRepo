@@ -17,8 +17,9 @@ MVC：Model-View-Controller,中文名“模型-视图-控制器”。
 比如检查用户名是否存在，取出用户信息等等；
 而View负责显示逻辑，通过一些简单的替换变量，View生成最终用户看到的HTML，那View实质就是HTML模板（如Django等），
 而在本次Web开发就是Jinja2模板；
-Model是用来传给View的，这样View在替换变量的时候，就可以从Model中取出相应的数据。
+MVC中的Model在哪？Model是用来传给View的，这样View在替换变量的时候，就可以从Model中取出相应的数据。在本项目中实际上model就是一个dict
 MVC注重网页的呈现，用户与web的交互
+C处理得到M，M传给V填入，最后得到response
 """
 #显示注册页面
 @get('/register')#这个作用是用来显示登录页面
