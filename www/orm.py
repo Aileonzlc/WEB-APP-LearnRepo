@@ -220,15 +220,15 @@ class Model(dict, metaclass=ModelMetaclass): # 继承Model的子类，会隐式�
     @classmethod
     async def findNumber(cls, selectField, where=None, args=None):
         ' find number by select and where. '
-        # 此处不懂_num_
-        sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
+        sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)] # selectField 的输入如'count(id)' 重新命名为_num_
         if where:
             sql.append('where')
             sql.append(where) # 此处的where输入的是条件（字符串形式），如"`id`>2"
         rs = await select(' '.join(sql), args, 1)
         if len(rs) == 0:
             return None
-        return rs[0]['_num_']
+        # 返回记录个数
+        return rs[0]['_num_'] # 类似select id _num_ form user 选id列重命名为_num_ 返回一个多重字典，但这条语句最多一个记录，所以用rs[0]
 
     @classmethod
     async def find(cls, pk):
