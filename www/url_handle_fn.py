@@ -6,9 +6,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from web_frame_handler import get, post
-from models import User, Blog, next_id #引入orm框架的User模型
+from models import User, Blog, Comment, next_id, Page #引入orm框架的User模型
 from config import config
-from apis import APIError, APIValueError, APIPermissionError
+from apis import APIError, APIValueError, APIPermissionError, APIResourceNotFoundError
+import markdown2
 
 # ========================第一部分url处理函数：面向前端==========================
 """
@@ -43,19 +44,82 @@ async def index1(request):
     'users':users
     } # 返回一个字典，'__template__'指定的模板文件是test.html，其他参数是传递给模板的数据
 
+#首页
 @get('/')
 async def index(request):
-    summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-    blogs = [
-        Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
-        Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
-        Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
-    ]
+    # summary = 'Hello,World.'
+    blogs = await Blog.findAll(orderBy='created_at desc')
     return {
         '__template__': 'blogs.html',
-        'blogs': blogs,
+        'blogs': blogs[0:4],
         '__user__': request.__user__
     }
+
+#显示日志详情页面
+@get('/blog/{id}')
+async def get_blog(request,*,id):
+    blog = await Blog.find(id)
+    comments = await Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
+    for c in comments:
+        c.html_content = text2html(c.content)
+    blog.html_content = markdown2.markdown(blog.content)
+    return {
+        '__template__': 'blog.html',
+        'blog': blog,
+        'comments': comments,
+        '__user__': request.__user__
+    }
+
+#日志列表页面
+@get('/manage/blogs')
+def manage_blogs(request,*, page='1'):
+    return {
+        '__template__': 'manage_blogs.html',
+        'page_index': get_page_index(page),
+        '__user__': request.__user__
+    }
+
+#修改日志页面
+@get('/manage/blogs/edit')
+def manage_edit_blog(request,*, id):
+    return {
+        '__template__': 'manage_blog_edit.html',
+        'id': id,
+        'action': '/api/blogs/%s' % id,
+        '__user__': request.__user__
+    }
+
+#评论列表页面
+@get('/manage/comments')
+def manage_comments(request,*, page='1'):
+    return {
+        '__template__': 'manage_comments.html',
+        'page_index': get_page_index(page),
+        '__user__': request.__user__
+    }
+
+#用户列表页面
+@get('/manage/users')
+def manage_users(request,*, page='1'):
+    return {
+        '__template__': 'manage_users.html',
+        'page_index': get_page_index(page),
+        '__user__': request.__user__
+    }
+
+# @get('/')
+# async def index(request):
+#     summary = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+#     blogs = [
+#         Blog(id='1', name='Test Blog', summary=summary, created_at=time.time()-120),
+#         Blog(id='2', name='Something New', summary=summary, created_at=time.time()-3600),
+#         Blog(id='3', name='Learn Swift', summary=summary, created_at=time.time()-7200)
+#     ]
+#     return {
+#         '__template__': 'blogs.html',
+#         'blogs': blogs,
+#         '__user__': request.__user__
+#     }
 
 # =======================第二部分url处理函数：web api 面向后端====================
 '''
@@ -182,6 +246,12 @@ async def cookie2user(cookie_str):
         logging.exception(e)
         return None
 
+# ====================================第三部分：面向View和Model之间的连接，MVVM=================
+#显示日志评论页面html-->@get('/blog/{id}')显示页面
+def text2html(text):
+    lines = map(lambda s: '<p>%s</p>' % s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'), filter(lambda s: s.strip() != '', text.split('\n')))
+    return ''.join(lines)
+
 #检测有否登录且是否为管理员
 def check_admin(request):
     if request.__user__ is None or request.__user__.admin:
@@ -189,7 +259,7 @@ def check_admin(request):
 
 #创建blog
 @post('/api/blogs')
-async def api_create_blogs(request, *, name, summary, content):
+async def api_created_blogs(request, *, name, summary, content):
     check_admin(request)
     if not name or not name.strip():
         raise APIValueError('name','name can not empty.')
@@ -197,16 +267,120 @@ async def api_create_blogs(request, *, name, summary, content):
         raise APIValueError('summary','summary can not empty.')
     if not content or not content.strip():
         raise APIValueError('content','content can not empty.')
-    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__image, summary=summary.strip(), name=name.strip(), content=content.strip())
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, summary=summary.strip(), name=name.strip(), content=content.strip())
     await blog.save()
     return blog
 
 #显示创建blog页面
-@get('/manage/blogs/create')
-def manage_create_blog(request):
+@get('/manage/blogs/created')
+def manage_created_blog(request):
     return {
         '__template__': 'manage_blog_edit.html',
         'id': '',
         'action': '/api/blogs',
         '__user__': request.__user__
     }
+
+#用于选择当前页面
+def get_page_index(page_str):
+    p = 1  #初始化页数取整
+    try:
+        p = int(page_str)
+    except ValueError:
+        pass
+    if p < 1:
+        p = 1
+    return p
+
+# 接口用于数据库返回日志,见manage_blogs.html
+@get('/api/blogs')
+async def api_blogs(*, page='1'):
+    page_index = get_page_index(page)
+    num = await Blog.findNumber('count(id)')#查询日志总数
+    p = Page(num, page_index)
+    if num == 0: # 数据库没日志
+        return dict(page=p, blogs=())
+    blogs = await Blog.findAll(orderBy='created_at desc', limit=(p.offset, p.limit)) #选取对应的日志
+    return dict(page=p, blogs=blogs)#返回管理页面信息，及显示日志数
+
+
+#接口都是用来返回信息给页面或从页面上读取命令操作服务器
+
+#后端API获取用户
+@get('/api/users')
+async def api_get_users(*, page='1'):
+    page_index = get_page_index(page)
+    num = await User.findNumber('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, users=())
+    users = await User.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
+    for u in users:
+        u.passwd = '******'
+    return dict(page=p, users=users)
+
+#后端API用户登出
+@get('/signout')
+def signout(request):
+    referer = request.headers.get('Referer')
+    r = web.HTTPFound(referer or '/') #重回首页
+    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True) #送回一个名字一样的cookie重置
+    logging.info('user signed out.')
+    return r
+
+#后端API获取日志详情，详情见manage_blog_edit.html
+@get('/api/blogs/{id}')
+async def api_get_blog(*, id):
+    blog = await Blog.find(id)
+    return blog
+
+#后端API修改日志，详情见manage_blog_edit.html
+@post('/api/blogs/{id}')
+async def api_update_blog(id, request, *, name, summary, content):
+    check_admin(request)
+    blog = await Blog.find(id)
+    if not name or not name.strip():
+        raise APIValueError('name', 'name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary', 'summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'content cannot be empty.')
+    blog.name = name.strip()
+    blog.summary = summary.strip()
+    blog.content = content.strip()
+    await blog.update()
+    return blog
+
+#后端API删除日志
+@post('/api/blogs/{id}/delete')
+async def api_delete_blog(request,*,id):
+    check_admin(request)
+    blog = await Blog.find(id)
+    await blog.remove()
+    return dict(id=id)
+
+#后端API获取评论列表，见manage_comments.html
+@get('/api/comments')
+async def api_comments(*, page='1'):
+    page_index = get_page_index(page)
+    num = await Comment.findNumber('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, comments=())
+    comments = await Comment.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
+    return dict(page=p, comments=comments)
+
+#后端API创建评论
+@post('/api/blogs/{id}/comments')
+async def api_created_comments(id, request, *, content):
+    user = request.__user__ #登录再说
+    if not user:
+        raise APIPermissionError('Please signin first.')
+    if not content or not content.strip():
+        raise APIValueError('content', 'content cannot be empty.')
+    blog = await Blog.find(id)
+    if blog is None:
+        raise APIResourceNotFoundError('Blog')
+    comment = Comment(blog_id=blog.id, user_id=user.id, user_name=user.name, user_image=user.image, content=content.strip())
+    await comment.save()
+    return comment
